@@ -5,6 +5,7 @@ const Utilities = require('./Utilities');
 const models = require('../models');
 const ImportUtilities = require('./ImportUtilities');
 const { denormalizeGraph, normalizeGraph } = require('./Database/graph-converter');
+const { ImporterError } = require('./errors');
 
 class GS1Importer {
     /**
@@ -676,6 +677,22 @@ class GS1Importer {
         });
 
         try {
+            const sortedEvents = eventVertices.sort((a, b) => {
+                if (a._key < b._key) {
+                    return -1;
+                }
+                if (a._key > b._key) {
+                    return 1;
+                }
+                return 0;
+            });
+
+            for (let i = 1; i < sortedEvents.length; i += 1) {
+                if (sortedEvents[i]._key === sortedEvents[i - 1]._key) {
+                    throw new ImporterError('Double event identifiers');
+                }
+            }
+
             for (const vertex of allVertices) {
                 if (vertex.identifiers !== null) {
                     for (const identifier in vertex.identifiers) {
@@ -684,13 +701,15 @@ class GS1Importer {
                         const object_key = vertex._key;
                         const id_key = this.helper.createKey('identifier', sender, id_type, id_value);
 
-                        identifiers.push({
-                            _key: id_key,
-                            id_type,
-                            id_value,
-                            vertex_type: 'IDENTIFIER',
-                            sender_id: senderId,
-                        });
+                        if (!identifiers.find(el => el._key === id_key)) {
+                            identifiers.push({
+                                _key: id_key,
+                                id_type,
+                                id_value,
+                                vertex_type: 'IDENTIFIER',
+                                sender_id: senderId,
+                            });
+                        }
 
                         identifierEdges.push({
                             _key: this.helper.createKey('identifies', sender, id_key, vertex.identifiers.uid),
