@@ -17,7 +17,7 @@ const web3 = new Web3(new Web3.providers.HttpProvider(`${localConfiguration.bloc
 
 if (argv.configDir) {
     localConfiguration.appDataPath = argv.configDir;
-    console.log(`congigDir given as param '${argv.configDir}'.`);
+    console.log(`configDir given as param '${argv.configDir}'.`);
 } else {
     localConfiguration.appDataPath = path.join(
         homedir,

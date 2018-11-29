@@ -92,14 +92,13 @@ class ImportUtilities {
      * @returns {{edges: *, vertices: *}}
      */
     static normalizeImport(dataSetId, vertices, edges) {
-        ImportUtilities.sort(edges);
-        ImportUtilities.sort(vertices);
-
         const { vertices: normVertices, edges: normEdges } = normalizeGraph(
             dataSetId,
             vertices,
             edges,
         );
+
+        ImportUtilities.sort(normEdges);
 
         return utilities.sortObject({
             edges: normEdges,

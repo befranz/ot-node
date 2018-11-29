@@ -765,9 +765,7 @@ class ArangoJS {
             return normalizedVertices;
         }
 
-        const objectClasses = await this.findObjectClassVertices();
-
-        return normalizedVertices.concat(objectClasses);
+        return normalizedVertices;
     }
 
     async findObjectClassVertices() {
