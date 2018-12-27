@@ -43,6 +43,7 @@ const ImportController = require('./modules/controller/import-controller');
 const APIUtilities = require('./modules/utility/api-utilities');
 const RestAPIService = require('./modules/service/rest-api-service');
 const M1PayoutAllMigration = require('./modules/migration/m1-payout-all-migration');
+const M2WithdrawAllMigration = require('./modules/migration/m2-withdraw-all-migration');
 
 const pjson = require('./package.json');
 const configjson = require('./config/config.json');
@@ -414,51 +415,15 @@ class OTNode {
         const transport = container.resolve('transport');
         await transport.init(container.cradle);
 
+        const commandExecutor = container.resolve('commandExecutor');
         // Starting event listener on Blockchain
         this.listenBlockchainEvents(blockchain);
         dhService.listenToBlockchainEvents();
 
-        try {
-            await profileService.initProfile();
-            await this._runMigration(blockchain);
-            await profileService.upgradeProfile();
-        } catch (e) {
-            log.error('Failed to create profile');
-            console.log(e);
-            notifyBugsnag(e);
-            process.exit(1);
-        }
-        await transport.start();
-
-        // Check if ERC725 has valid node ID.
-        const profile = await blockchain.getProfile(config.erc725Identity);
-
-        if (!profile.nodeId.toLowerCase().startsWith(`0x${config.identity.toLowerCase()}`)) {
-            throw Error('ERC725 profile not created for this node ID. ' +
-                `My identity ${config.identity}, profile's node id: ${profile.nodeId}.`);
-        }
-
-        // Initialise API
-        const restAPIService = container.resolve('restAPIService');
-        try {
-            await restAPIService.startRPC();
-        } catch (err) {
-            log.error('Failed to start RPC server');
-            console.log(err);
-            notifyBugsnag(err);
-            process.exit(1);
-        }
-
-        if (config.remote_control_enabled) {
-            log.info(`Remote control enabled and listening on port ${config.node_remote_control_port}`);
-            await remoteControl.connect();
-        }
-
-        const commandExecutor = container.resolve('commandExecutor');
-        await commandExecutor.init();
-        await commandExecutor.replay();
-        await commandExecutor.start();
-        appState.started = true;
+        await profileService.initProfile();
+        await this._runMigration(blockchain, web3, commandExecutor);
+        log.important('Stopping the node...');
+        process.exit(0);
     }
 
     /**
@@ -467,7 +432,7 @@ class OTNode {
      * @deprecated
      * @private
      */
-    async _runMigration(blockchain) {
+    async _runMigration(blockchain, web3, commandExecutor) {
         const migrationsStartedMills = Date.now();
         log.info('Initializing code migrations...');
 
@@ -488,6 +453,19 @@ class OTNode {
                 notifyBugsnag(e);
                 process.exit(1);
             }
+        }
+
+        const withdrawMigration = new M2WithdrawAllMigration({
+            logger: log, blockchain, config, web3, commandExecutor,
+        });
+        try {
+            await withdrawMigration.run();
+            log.warn(`One-time withdraw migration completed. Lasted ${Date.now() - migrationsStartedMills} millisecond(s)`);
+        } catch (e) {
+            log.error(`Failed to run withdraw code migration. Lasted ${Date.now() - migrationsStartedMills} millisecond(s). ${e.message}`);
+            console.log(e);
+            notifyBugsnag(e);
+            process.exit(1);
         }
 
         log.info(`Code migrations completed. Lasted ${Date.now() - migrationsStartedMills}`);
