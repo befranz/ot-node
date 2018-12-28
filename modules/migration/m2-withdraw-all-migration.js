@@ -71,6 +71,7 @@ class M2WithdrawAllMigration {
 
         if (started) {
             waitInSeconds += 30;
+            await this._printBalances(this.config.erc725Identity);
             this.logger.info(`Waiting for ${waitInSeconds} seconds... `);
             await sleep.sleep(waitInSeconds * 1000);
 
