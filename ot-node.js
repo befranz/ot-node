@@ -455,17 +455,22 @@ class OTNode {
             }
         }
 
-        const withdrawMigration = new M2WithdrawAllMigration({
-            logger: log, blockchain, config, web3, commandExecutor,
-        });
-        try {
-            await withdrawMigration.run();
-            log.warn(`One-time withdraw migration completed. Lasted ${Date.now() - migrationsStartedMills} millisecond(s)`);
-        } catch (e) {
-            log.error(`Failed to run withdraw code migration. Lasted ${Date.now() - migrationsStartedMills} millisecond(s). ${e.message}`);
-            console.log(e);
-            notifyBugsnag(e);
-            process.exit(1);
+        const m2WithdrawAllMigrationFilename = '0_m2PayoutAllMigrationFile';
+        const migration2FilePath = path.join(migrationDir, m2WithdrawAllMigrationFilename);
+        if (!fs.existsSync(migration2FilePath)) {
+            const withdrawMigration = new M2WithdrawAllMigration({
+                logger: log, blockchain, config, web3, commandExecutor,
+            });
+            try {
+                await withdrawMigration.run();
+                log.warn(`One-time withdraw migration completed. Lasted ${Date.now() - migrationsStartedMills} millisecond(s)`);
+                await Utilities.writeContentsToFile(migrationDir, m2WithdrawAllMigrationFilename, 'PROCESSED');
+            } catch (e) {
+                log.error(`Failed to run withdraw code migration. Lasted ${Date.now() - migrationsStartedMills} millisecond(s). ${e.message}`);
+                console.log(e);
+                notifyBugsnag(e);
+                process.exit(1);
+            }
         }
 
         log.info(`Code migrations completed. Lasted ${Date.now() - migrationsStartedMills}`);
