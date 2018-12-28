@@ -23,6 +23,7 @@ class M2WithdrawAllMigration {
      * Run migration
      */
     async run() {
+        this.logger.warn('Initiating withdraw operation...');
         const mTRAC = this.web3.utils.toWei(MAX_TOKEN_AMOUNT.toString(), 'ether');
 
         await this.blockchain.startTokenWithdrawal(
@@ -58,7 +59,7 @@ class M2WithdrawAllMigration {
                     } = JSON.parse(event.data);
                     this.logger.important(`Token withdrawal for amount ${eAmount} initiated.`);
                     started = true;
-                    waitInSeconds = eWithdrawalDelayInSeconds;
+                    waitInSeconds = Number(eWithdrawalDelayInSeconds);
                     amountToWithdraw = eAmount;
                     break;
                 }
@@ -76,9 +77,28 @@ class M2WithdrawAllMigration {
             const blockchainIdentity = utilities.normalizeHex(this.config.erc725Identity);
             await this.blockchain.withdrawTokens(blockchainIdentity);
             this.logger.important(`Token withdrawal for amount ${mTRAC} completed.`);
+
+            await this._printBalances(this.config.erc725Identity);
         } else {
             throw new Error('Failed to withdraw amounts');
         }
+    }
+
+    /**
+     * Print balances
+     * @param blockchainIdentity
+     * @return {Promise<void>}
+     * @private
+     */
+    async _printBalances(blockchainIdentity) {
+        const balance = await this.blockchain.getProfileBalance(this.config.node_wallet);
+        const balanceInTRAC = this.web3.utils.fromWei(balance, 'ether');
+        this.logger.info(`Wallet balance: ${balanceInTRAC} TRAC`);
+
+        const profile = await this.blockchain.getProfile(blockchainIdentity);
+        const profileBalance = profile.stake;
+        const profileBalanceInTRAC = this.web3.utils.fromWei(profileBalance, 'ether');
+        this.logger.info(`Profile balance: ${profileBalanceInTRAC} TRAC`);
     }
 }
 
