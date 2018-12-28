@@ -76,7 +76,7 @@ class M2WithdrawAllMigration {
 
             const blockchainIdentity = utilities.normalizeHex(this.config.erc725Identity);
             await this.blockchain.withdrawTokens(blockchainIdentity);
-            this.logger.important(`Token withdrawal for amount ${mTRAC} completed.`);
+            this.logger.important(`Token withdrawal for amount ${amountToWithdraw} completed.`);
 
             await this._printBalances(this.config.erc725Identity);
         } else {
